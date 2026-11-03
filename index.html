@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Country Outline Study</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --ink:#1c1e21; --muted:#6b7280; --line:#d8dbe0; --accent:#2563eb; --good:#15803d; --bad:#b91c1c; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 system-ui,sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.3rem; margin:8px 0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  button { font:inherit; padding:10px 16px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .muted { color:var(--muted); font-size:.9rem; }
+  input[type=number] { width:80px; font:inherit; padding:8px; border:1px solid var(--line); border-radius:8px; }
+  .outline { background:#fff; border-radius:8px; border:1px solid var(--line); padding:8px; text-align:center; }
+  .outline img { width:100%; max-width:420px; aspect-ratio:1; object-fit:contain; display:block; margin:0 auto; }
+  .combo { position:relative; margin-top:12px; }
+  .combo input { width:100%; font:inherit; padding:12px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  .combo ul { position:absolute; z-index:5; left:0; right:0; top:100%; margin:4px 0 0; padding:4px 0; list-style:none; max-height:260px; overflow-y:auto; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.15); }
+  .combo li { padding:8px 12px; cursor:pointer; }
+  .combo li.active, .combo li:hover { background:#e8f0fe; }
+  .combo li.empty { color:var(--muted); cursor:default; }
+  .result { margin-top:12px; font-weight:600; }
+  .result.good { color:var(--good); } .result.bad { color:var(--bad); }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th, td { text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); }
+  details summary { cursor:pointer; }
+  .hidden { display:none; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --card:#1e2127; --ink:#e8eaed; --muted:#9aa0a8; --line:#363b44; --accent:#3b82f6; --good:#4ade80; --bad:#f87171; }
+    button { background:#272b33; }
+    .combo input, input[type=number] { background:#14161a; }
+    .combo ul { background:#1e2127; } .combo li.active, .combo li:hover { background:#2b3342; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Country Outline Study</h1>
+
+  <section id="home" class="card">
+    <div class="row">
+      <label>Countries this session <input id="count" type="number" min="1" value="20"></label>
+      <button id="start" class="primary">Start session</button>
+    </div>
+    <p class="muted">Order: fewest views first, then highest score (the ones you miss most). Ties are shuffled.</p>
+    <details>
+      <summary>Progress (<span id="seenCount"></span>)</summary>
+      <table><thead><tr><th>Country</th><th>Views</th><th>Score</th></tr></thead><tbody id="stats"></tbody></table>
+      <p><button id="reset">Reset all data</button></p>
+    </details>
+  </section>
+
+  <section id="study" class="card hidden">
+    <div class="row" style="justify-content:space-between">
+      <span class="muted" id="progress"></span>
+      <button id="finish">Finish early</button>
+    </div>
+    <div class="outline"><img id="img" alt="Country outline"></div>
+    <div class="combo">
+      <input id="answer" type="text" placeholder="Which country is this? Type or pick…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="list">
+      <ul id="list" role="listbox" class="hidden"></ul>
+    </div>
+    <div id="result" class="result"></div>
+    <p><button id="next" class="primary hidden">Next</button></p>
+  </section>
+
+  <section id="done" class="card hidden">
+    <h2 id="doneTitle" style="margin-top:0">Session complete</h2>
+    <p id="summary"></p>
+    <button id="again" class="primary">Back to start</button>
+  </section>
+</main>
+
+<script>
+const COUNTRIES = [{"code": "af", "name": "Afghanistan", "file": "outlines/af.svg"}, {"code": "al", "name": "Albania", "file": "outlines/al.svg"}, {"code": "dz", "name": "Algeria", "file": "outlines/dz.svg"}, {"code": "as", "name": "American Samoa", "file": "outlines/as.svg"}, {"code": "ad", "name": "Andorra", "file": "outlines/ad.svg"}, {"code": "ao", "name": "Angola", "file": "outlines/ao.svg"}, {"code": "ai", "name": "Anguilla", "file": "outlines/ai.svg"}, {"code": "aq", "name": "Antarctica", "file": "outlines/aq.svg"}, {"code": "ag", "name": "Antigua and Barbuda", "file": "outlines/ag.svg"}, {"code": "ar", "name": "Argentina", "file": "outlines/ar.svg"}, {"code": "am", "name": "Armenia", "file": "outlines/am.svg"}, {"code": "aw", "name": "Aruba", "file": "outlines/aw.svg"}, {"code": "au", "name": "Australia", "file": "outlines/au.svg"}, {"code": "at", "name": "Austria", "file": "outlines/at.svg"}, {"code": "az", "name": "Azerbaijan", "file": "outlines/az.svg"}, {"code": "bs", "name": "Bahamas", "file": "outlines/bs.svg"}, {"code": "bh", "name": "Bahrain", "file": "outlines/bh.svg"}, {"code": "bd", "name": "Bangladesh", "file": "outlines/bd.svg"}, {"code": "bb", "name": "Barbados", "file": "outlines/bb.svg"}, {"code": "by", "name": "Belarus", "file": "outlines/by.svg"}, {"code": "be", "name": "Belgium", "file": "outlines/be.svg"}, {"code": "bz", "name": "Belize", "file": "outlines/bz.svg"}, {"code": "bj", "name": "Benin", "file": "outlines/bj.svg"}, {"code": "bm", "name": "Bermuda", "file": "outlines/bm.svg"}, {"code": "bt", "name": "Bhutan", "file": "outlines/bt.svg"}, {"code": "bo", "name": "Bolivia", "file": "outlines/bo.svg"}, {"code": "ba", "name": "Bosnia and Herzegovina", "file": "outlines/ba.svg"}, {"code": "bw", "name": "Botswana", "file": "outlines/bw.svg"}, {"code": "bv", "name": "Bouvet Island", "file": "outlines/bv.svg"}, {"code": "br", "name": "Brazil", "file": "outlines/br.svg"}, {"code": "io", "name": "British Indian Ocean Territory", "file": "outlines/io.svg"}, {"code": "vg", "name": "British Virgin Islands", "file": "outlines/vg.svg"}, {"code": "bn", "name": "Brunei", "file": "outlines/bn.svg"}, {"code": "bg", "name": "Bulgaria", "file": "outlines/bg.svg"}, {"code": "bf", "name": "Burkina Faso", "file": "outlines/bf.svg"}, {"code": "bi", "name": "Burundi", "file": "outlines/bi.svg"}, {"code": "kh", "name": "Cambodia", "file": "outlines/kh.svg"}, {"code": "cm", "name": "Cameroon", "file": "outlines/cm.svg"}, {"code": "ca", "name": "Canada", "file": "outlines/ca.svg"}, {"code": "cv", "name": "Cabo Verde", "file": "outlines/cv.svg"}, {"code": "ky", "name": "Cayman Islands", "file": "outlines/ky.svg"}, {"code": "cf", "name": "Central African Republic", "file": "outlines/cf.svg"}, {"code": "td", "name": "Chad", "file": "outlines/td.svg"}, {"code": "cl", "name": "Chile", "file": "outlines/cl.svg"}, {"code": "cn", "name": "China", "file": "outlines/cn.svg"}, {"code": "cx", "name": "Christmas Island", "file": "outlines/cx.svg"}, {"code": "cc", "name": "Cocos Islands", "file": "outlines/cc.svg"}, {"code": "co", "name": "Colombia", "file": "outlines/co.svg"}, {"code": "km", "name": "Comoros", "file": "outlines/km.svg"}, {"code": "cg", "name": "Republic of the Congo", "file": "outlines/cg.svg"}, {"code": "ck", "name": "Cook Islands", "file": "outlines/ck.svg"}, {"code": "cr", "name": "Costa Rica", "file": "outlines/cr.svg"}, {"code": "ci", "name": "Côte d'Ivoire", "file": "outlines/ci.svg"}, {"code": "hr", "name": "Croatia", "file": "outlines/hr.svg"}, {"code": "cu", "name": "Cuba", "file": "outlines/cu.svg"}, {"code": "cy", "name": "Cyprus", "file": "outlines/cy.svg"}, {"code": "cz", "name": "Czechia", "file": "outlines/cz.svg"}, {"code": "cd", "name": "Democratic Republic of the Congo", "file": "outlines/cd.svg"}, {"code": "dk", "name": "Denmark", "file": "outlines/dk.svg"}, {"code": "dj", "name": "Djibouti", "file": "outlines/dj.svg"}, {"code": "dm", "name": "Dominica", "file": "outlines/dm.svg"}, {"code": "do", "name": "Dominican Republic", "file": "outlines/do.svg"}, {"code": "ec", "name": "Ecuador", "file": "outlines/ec.svg"}, {"code": "eg", "name": "Egypt", "file": "outlines/eg.svg"}, {"code": "sv", "name": "El Salvador", "file": "outlines/sv.svg"}, {"code": "gq", "name": "Equatorial Guinea", "file": "outlines/gq.svg"}, {"code": "er", "name": "Eritrea", "file": "outlines/er.svg"}, {"code": "ee", "name": "Estonia", "file": "outlines/ee.svg"}, {"code": "sz", "name": "Eswatini", "file": "outlines/sz.svg"}, {"code": "et", "name": "Ethiopia", "file": "outlines/et.svg"}, {"code": "fk", "name": "Falkland Islands (Malvinas)", "file": "outlines/fk.svg"}, {"code": "fo", "name": "Faroe Islands", "file": "outlines/fo.svg"}, {"code": "fj", "name": "Fiji", "file": "outlines/fj.svg"}, {"code": "fi", "name": "Finland", "file": "outlines/fi.svg"}, {"code": "fr", "name": "France", "file": "outlines/fr.svg"}, {"code": "gf", "name": "French Guiana", "file": "outlines/gf.svg"}, {"code": "pf", "name": "French Polynesia", "file": "outlines/pf.svg"}, {"code": "tf", "name": "French Southern Territories", "file": "outlines/tf.svg"}, {"code": "ga", "name": "Gabon", "file": "outlines/ga.svg"}, {"code": "gm", "name": "The Gambia", "file": "outlines/gm.svg"}, {"code": "ge", "name": "Georgia", "file": "outlines/ge.svg"}, {"code": "de", "name": "Germany", "file": "outlines/de.svg"}, {"code": "gh", "name": "Ghana", "file": "outlines/gh.svg"}, {"code": "gi", "name": "Gibraltar", "file": "outlines/gi.svg"}, {"code": "gr", "name": "Greece", "file": "outlines/gr.svg"}, {"code": "gl", "name": "Greenland", "file": "outlines/gl.svg"}, {"code": "gd", "name": "Grenada", "file": "outlines/gd.svg"}, {"code": "gp", "name": "Guadeloupe", "file": "outlines/gp.svg"}, {"code": "gu", "name": "Guam", "file": "outlines/gu.svg"}, {"code": "gt", "name": "Guatemala", "file": "outlines/gt.svg"}, {"code": "gg", "name": "Bailiwick of Guernsey", "file": "outlines/gg.svg"}, {"code": "gn", "name": "Guinea", "file": "outlines/gn.svg"}, {"code": "gw", "name": "Guinea-Bissau", "file": "outlines/gw.svg"}, {"code": "gy", "name": "Guyana", "file": "outlines/gy.svg"}, {"code": "ht", "name": "Haiti", "file": "outlines/ht.svg"}, {"code": "hm", "name": "Heard Island and McDonald Islands", "file": "outlines/hm.svg"}, {"code": "hn", "name": "Honduras", "file": "outlines/hn.svg"}, {"code": "hk", "name": "Hong Kong", "file": "outlines/hk.svg"}, {"code": "hu", "name": "Hungary", "file": "outlines/hu.svg"}, {"code": "is", "name": "Iceland", "file": "outlines/is.svg"}, {"code": "in", "name": "India", "file": "outlines/in.svg"}, {"code": "id", "name": "Indonesia", "file": "outlines/id.svg"}, {"code": "ir", "name": "Iran", "file": "outlines/ir.svg"}, {"code": "iq", "name": "Iraq", "file": "outlines/iq.svg"}, {"code": "ie", "name": "Ireland", "file": "outlines/ie.svg"}, {"code": "im", "name": "Isle of Man", "file": "outlines/im.svg"}, {"code": "il", "name": "Israel", "file": "outlines/il.svg"}, {"code": "it", "name": "Italy", "file": "outlines/it.svg"}, {"code": "jm", "name": "Jamaica", "file": "outlines/jm.svg"}, {"code": "jp", "name": "Japan", "file": "outlines/jp.svg"}, {"code": "je", "name": "Jersey", "file": "outlines/je.svg"}, {"code": "jo", "name": "Jordan", "file": "outlines/jo.svg"}, {"code": "kz", "name": "Kazakhstan", "file": "outlines/kz.svg"}, {"code": "ke", "name": "Kenya", "file": "outlines/ke.svg"}, {"code": "ki", "name": "Kiribati", "file": "outlines/ki.svg"}, {"code": "xk", "name": "Kosovo", "file": "outlines/xk.svg"}, {"code": "kw", "name": "Kuwait", "file": "outlines/kw.svg"}, {"code": "kg", "name": "Kyrgyzstan", "file": "outlines/kg.svg"}, {"code": "la", "name": "Laos", "file": "outlines/la.svg"}, {"code": "lv", "name": "Latvia", "file": "outlines/lv.svg"}, {"code": "lb", "name": "Lebanon", "file": "outlines/lb.svg"}, {"code": "ls", "name": "Lesotho", "file": "outlines/ls.svg"}, {"code": "lr", "name": "Liberia", "file": "outlines/lr.svg"}, {"code": "ly", "name": "Libya", "file": "outlines/ly.svg"}, {"code": "li", "name": "Liechtenstein", "file": "outlines/li.svg"}, {"code": "lt", "name": "Lithuania", "file": "outlines/lt.svg"}, {"code": "lu", "name": "Luxembourg", "file": "outlines/lu.svg"}, {"code": "mo", "name": "Macau", "file": "outlines/mo.svg"}, {"code": "mg", "name": "Madagascar", "file": "outlines/mg.svg"}, {"code": "mw", "name": "Malawi", "file": "outlines/mw.svg"}, {"code": "my", "name": "Malaysia", "file": "outlines/my.svg"}, {"code": "mv", "name": "Maldives", "file": "outlines/mv.svg"}, {"code": "ml", "name": "Mali", "file": "outlines/ml.svg"}, {"code": "mt", "name": "Malta", "file": "outlines/mt.svg"}, {"code": "mq", "name": "Martinique", "file": "outlines/mq.svg"}, {"code": "mr", "name": "Mauritania", "file": "outlines/mr.svg"}, {"code": "mu", "name": "Mauritius", "file": "outlines/mu.svg"}, {"code": "yt", "name": "Mayotte", "file": "outlines/yt.svg"}, {"code": "mx", "name": "Mexico", "file": "outlines/mx.svg"}, {"code": "fm", "name": "Federated States of Micronesia", "file": "outlines/fm.svg"}, {"code": "md", "name": "Moldova", "file": "outlines/md.svg"}, {"code": "mc", "name": "Monaco", "file": "outlines/mc.svg"}, {"code": "mn", "name": "Mongolia", "file": "outlines/mn.svg"}, {"code": "me", "name": "Montenegro", "file": "outlines/me.svg"}, {"code": "ms", "name": "Montserrat", "file": "outlines/ms.svg"}, {"code": "ma", "name": "Morocco", "file": "outlines/ma.svg"}, {"code": "mz", "name": "Mozambique", "file": "outlines/mz.svg"}, {"code": "mm", "name": "Myanmar", "file": "outlines/mm.svg"}, {"code": "na", "name": "Namibia", "file": "outlines/na.svg"}, {"code": "nr", "name": "Naoero", "file": "outlines/nr.svg"}, {"code": "np", "name": "Nepal", "file": "outlines/np.svg"}, {"code": "nl", "name": "Netherlands", "file": "outlines/nl.svg"}, {"code": "nc", "name": "New Caledonia", "file": "outlines/nc.svg"}, {"code": "nz", "name": "New Zealand", "file": "outlines/nz.svg"}, {"code": "ni", "name": "Nicaragua", "file": "outlines/ni.svg"}, {"code": "ne", "name": "Niger", "file": "outlines/ne.svg"}, {"code": "ng", "name": "Nigeria", "file": "outlines/ng.svg"}, {"code": "nu", "name": "Niue", "file": "outlines/nu.svg"}, {"code": "nf", "name": "Norfolk Island", "file": "outlines/nf.svg"}, {"code": "kp", "name": "North Korea", "file": "outlines/kp.svg"}, {"code": "mk", "name": "North Macedonia", "file": "outlines/mk.svg"}, {"code": "mp", "name": "Northern Mariana Islands", "file": "outlines/mp.svg"}, {"code": "no", "name": "Norway", "file": "outlines/no.svg"}, {"code": "om", "name": "Oman", "file": "outlines/om.svg"}, {"code": "pk", "name": "Pakistan", "file": "outlines/pk.svg"}, {"code": "pw", "name": "Palau", "file": "outlines/pw.svg"}, {"code": "ps", "name": "Palestine", "file": "outlines/ps.svg"}, {"code": "pa", "name": "Panama", "file": "outlines/pa.svg"}, {"code": "pg", "name": "Papua New Guinea", "file": "outlines/pg.svg"}, {"code": "py", "name": "Paraguay", "file": "outlines/py.svg"}, {"code": "pe", "name": "Peru", "file": "outlines/pe.svg"}, {"code": "ph", "name": "Philippines", "file": "outlines/ph.svg"}, {"code": "pn", "name": "Pitcairn Islands", "file": "outlines/pn.svg"}, {"code": "pl", "name": "Poland", "file": "outlines/pl.svg"}, {"code": "pt", "name": "Portugal", "file": "outlines/pt.svg"}, {"code": "pr", "name": "Puerto Rico", "file": "outlines/pr.svg"}, {"code": "qa", "name": "Qatar", "file": "outlines/qa.svg"}, {"code": "re", "name": "Réunion", "file": "outlines/re.svg"}, {"code": "ro", "name": "Romania", "file": "outlines/ro.svg"}, {"code": "ru", "name": "Russia", "file": "outlines/ru.svg"}, {"code": "rw", "name": "Rwanda", "file": "outlines/rw.svg"}, {"code": "sh", "name": "Saint Helena, Ascension and Tristan da Cunha", "file": "outlines/sh.svg"}, {"code": "kn", "name": "Saint Kitts and Nevis", "file": "outlines/kn.svg"}, {"code": "lc", "name": "Saint Lucia", "file": "outlines/lc.svg"}, {"code": "pm", "name": "Saint Pierre and Miquelon", "file": "outlines/pm.svg"}, {"code": "vc", "name": "Saint Vincent and the Grenadines", "file": "outlines/vc.svg"}, {"code": "ws", "name": "Samoa", "file": "outlines/ws.svg"}, {"code": "sm", "name": "San Marino", "file": "outlines/sm.svg"}, {"code": "st", "name": "São Tomé and Príncipe", "file": "outlines/st.svg"}, {"code": "sa", "name": "Saudi Arabia", "file": "outlines/sa.svg"}, {"code": "sn", "name": "Senegal", "file": "outlines/sn.svg"}, {"code": "rs", "name": "Serbia", "file": "outlines/rs.svg"}, {"code": "sc", "name": "Seychelles", "file": "outlines/sc.svg"}, {"code": "sl", "name": "Sierra Leone", "file": "outlines/sl.svg"}, {"code": "sg", "name": "Singapore", "file": "outlines/sg.svg"}, {"code": "sk", "name": "Slovakia", "file": "outlines/sk.svg"}, {"code": "si", "name": "Slovenia", "file": "outlines/si.svg"}, {"code": "sb", "name": "Solomon Islands", "file": "outlines/sb.svg"}, {"code": "so", "name": "Somalia", "file": "outlines/so.svg"}, {"code": "za", "name": "South Africa", "file": "outlines/za.svg"}, {"code": "gs", "name": "South Georgia and the South Sandwich Islands", "file": "outlines/gs.svg"}, {"code": "kr", "name": "South Korea", "file": "outlines/kr.svg"}, {"code": "ss", "name": "South Sudan", "file": "outlines/ss.svg"}, {"code": "es", "name": "Spain", "file": "outlines/es.svg"}, {"code": "lk", "name": "Sri Lanka", "file": "outlines/lk.svg"}, {"code": "sd", "name": "Sudan", "file": "outlines/sd.svg"}, {"code": "sr", "name": "Suriname", "file": "outlines/sr.svg"}, {"code": "sj", "name": "Svalbard and Jan Mayen", "file": "outlines/sj.svg"}, {"code": "se", "name": "Sweden", "file": "outlines/se.svg"}, {"code": "ch", "name": "Switzerland", "file": "outlines/ch.svg"}, {"code": "sy", "name": "Syria", "file": "outlines/sy.svg"}, {"code": "tw", "name": "Taiwan", "file": "outlines/tw.svg"}, {"code": "tj", "name": "Tajikistan", "file": "outlines/tj.svg"}, {"code": "tz", "name": "Tanzania", "file": "outlines/tz.svg"}, {"code": "th", "name": "Thailand", "file": "outlines/th.svg"}, {"code": "tl", "name": "Timor-Leste", "file": "outlines/tl.svg"}, {"code": "tg", "name": "Togo", "file": "outlines/tg.svg"}, {"code": "tk", "name": "Tokelau", "file": "outlines/tk.svg"}, {"code": "to", "name": "Tonga", "file": "outlines/to.svg"}, {"code": "tt", "name": "Trinidad and Tobago", "file": "outlines/tt.svg"}, {"code": "tn", "name": "Tunisia", "file": "outlines/tn.svg"}, {"code": "tr", "name": "Türkiye", "file": "outlines/tr.svg"}, {"code": "tm", "name": "Turkmenistan", "file": "outlines/tm.svg"}, {"code": "tc", "name": "Turks and Caicos Islands", "file": "outlines/tc.svg"}, {"code": "tv", "name": "Tuvalu", "file": "outlines/tv.svg"}, {"code": "vi", "name": "U.S. Virgin Islands", "file": "outlines/vi.svg"}, {"code": "ug", "name": "Uganda", "file": "outlines/ug.svg"}, {"code": "ua", "name": "Ukraine", "file": "outlines/ua.svg"}, {"code": "ae", "name": "United Arab Emirates", "file": "outlines/ae.svg"}, {"code": "gb", "name": "United Kingdom", "file": "outlines/gb.svg"}, {"code": "us", "name": "United States of America", "file": "outlines/us.svg"}, {"code": "uy", "name": "Uruguay", "file": "outlines/uy.svg"}, {"code": "uz", "name": "Uzbekistan", "file": "outlines/uz.svg"}, {"code": "vu", "name": "Vanuatu", "file": "outlines/vu.svg"}, {"code": "va", "name": "Vatican City", "file": "outlines/va.svg"}, {"code": "ve", "name": "Venezuela", "file": "outlines/ve.svg"}, {"code": "vn", "name": "Vietnam", "file": "outlines/vn.svg"}, {"code": "wf", "name": "Wallis and Futuna", "file": "outlines/wf.svg"}, {"code": "eh", "name": "Western Sahara", "file": "outlines/eh.svg"}, {"code": "ye", "name": "Yemen", "file": "outlines/ye.svg"}, {"code": "zm", "name": "Zambia", "file": "outlines/zm.svg"}, {"code": "zw", "name": "Zimbabwe", "file": "outlines/zw.svg"}, {"code": "cw", "name": "Curaçao", "file": "outlines/cw.svg"}, {"code": "bq", "name": "Caribbean Netherlands", "file": "outlines/bq.svg"}, {"code": "mh", "name": "Marshall Islands", "file": "outlines/mh.svg"}, {"code": "bl", "name": "Saint Barthélemy", "file": "outlines/bl.svg"}, {"code": "sx", "name": "Sint Maarten", "file": "outlines/sx.svg"}, {"code": "mf", "name": "Saint Martin", "file": "outlines/mf.svg"}, {"code": "ax", "name": "Åland", "file": "outlines/ax.svg"}];
+const KEY = 'countryOutlineStats.v1';
+const $ = id => document.getElementById(id);
+const byCode = Object.fromEntries(COUNTRIES.map(c => [c.code, c]));
+
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(stats)); } catch {} }
+let stats = load();
+const get = code => stats[code] || (stats[code] = { views:0, score:0 });
+
+let queue = [], idx = 0, current = null, answered = false, right = 0, wrong = 0;
+
+function shuffle(a) { for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function show(id) { for (const s of ['home','study','done']) $(s).classList.toggle('hidden', s!==id); }
+
+function renderStats() {
+  const seen = COUNTRIES.filter(c => (stats[c.code]||{}).views).length;
+  $('seenCount').textContent = `${seen}/${COUNTRIES.length} seen`;
+  const rows = COUNTRIES.map(c => ({c, s: stats[c.code] || {views:0,score:0}}))
+    .sort((a,b) => b.s.score - a.s.score || a.s.views - b.s.views || a.c.name.localeCompare(b.c.name));
+  $('stats').innerHTML = rows.map(r => `<tr><td>${esc(r.c.name)}</td><td>${r.s.views}</td><td>${r.s.score}</td></tr>`).join('');
+}
+function esc(s){return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+
+function startSession() {
+  const n = Math.max(1, Math.min(COUNTRIES.length, parseInt($('count').value) || 20));
+  const items = shuffle(COUNTRIES.slice()).sort((a,b) => {
+    const sa = stats[a.code]||{views:0,score:0}, sb = stats[b.code]||{views:0,score:0};
+    return sa.views - sb.views || sb.score - sa.score; // fewest views, then highest score
+  });
+  queue = items.slice(0, n); idx = 0; right = wrong = 0;
+  show('study'); nextQuestion();
+}
+
+function nextQuestion() {
+  if (idx >= queue.length) return endSession(false);
+  current = queue[idx]; answered = false;
+  $('img').src = current.file;
+  $('progress').textContent = `${idx+1} / ${queue.length}`;
+  $('answer').value = ''; $('answer').disabled = false;
+  $('result').textContent = ''; $('result').className = 'result';
+  $('next').classList.add('hidden');
+  $('answer').focus();
+  renderList();
+}
+
+function submit(country) {
+  if (answered) return;
+  answered = true;
+  const s = get(current.code);
+  s.views++;
+  if (country.code === current.code) { s.score = Math.max(0, s.score - 1); right++;
+    $('result').textContent = '✓ Correct: ' + current.name; $('result').className = 'result good';
+  } else { s.score += 5; wrong++;
+    $('result').textContent = `✗ Wrong — it's ${current.name}`; $('result').className = 'result bad'; }
+  save(); idx++;
+  $('answer').disabled = true; closeList();
+  $('next').textContent = idx >= queue.length ? 'Finish' : 'Next';
+  $('next').classList.remove('hidden'); $('next').focus();
+}
+
+function endSession(early) {
+  let skipped = 0;
+  if (early) {
+    // add a view to every country in the session not yet answered
+    for (let i = idx; i < queue.length; i++) { get(queue[i].code).views++; skipped++; }
+    save();
+  }
+  $('doneTitle').textContent = early ? 'Session finished early' : 'Session complete';
+  $('summary').textContent = `Correct: ${right}, wrong: ${wrong}` + (early ? `, skipped (view added): ${skipped}` : '') + '.';
+  show('done');
+}
+
+/* ---- autocomplete ---- */
+let matches = [], active = -1;
+function filterNames(q) {
+  q = q.trim().toLowerCase();
+  if (!q) return COUNTRIES.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const starts = [], contains = [];
+  for (const c of COUNTRIES) {
+    const n = c.name.toLowerCase(), i = n.indexOf(q);
+    if (i === 0) starts.push(c); else if (i > 0) contains.push(c);
+  }
+  const cmp = (a,b)=>a.name.localeCompare(b.name);
+  return starts.sort(cmp).concat(contains.sort(cmp));
+}
+function renderList() {
+  const input = $('answer');
+  if (answered || input.disabled) return closeList();
+  matches = filterNames(input.value); active = matches.length ? 0 : -1;
+  const ul = $('list');
+  ul.innerHTML = matches.length
+    ? matches.map((c,i)=>`<li role="option" data-i="${i}" class="${i===active?'active':''}">${esc(c.name)}</li>`).join('')
+    : '<li class="empty">No matches</li>';
+  ul.classList.remove('hidden'); input.setAttribute('aria-expanded','true');
+  ul.scrollTop = 0;
+}
+function closeList() { $('list').classList.add('hidden'); $('answer').setAttribute('aria-expanded','false'); }
+function setActive(i) {
+  if (!matches.length) return;
+  active = (i + matches.length) % matches.length;
+  [...$('list').children].forEach((li,k)=>li.classList.toggle('active', k===active));
+  $('list').children[active].scrollIntoView({block:'nearest'});
+}
+
+$('answer').addEventListener('input', renderList);
+$('answer').addEventListener('focus', renderList);
+$('answer').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); if ($('list').classList.contains('hidden')) renderList(); else setActive(active+1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(active-1); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (matches[active]) submit(matches[active]); }
+  else if (e.key === 'Escape') closeList();
+});
+$('list').addEventListener('mousedown', e => {
+  const li = e.target.closest('li[data-i]'); if (!li) return;
+  e.preventDefault(); submit(matches[+li.dataset.i]);
+});
+document.addEventListener('click', e => { if (!e.target.closest('.combo')) closeList(); });
+
+$('start').onclick = startSession;
+$('next').onclick = nextQuestion;
+$('finish').onclick = () => endSession(true);
+$('again').onclick = () => { renderStats(); show('home'); };
+$('reset').onclick = () => { if (confirm('Erase all views and scores?')) { stats = {}; save(); renderStats(); } };
+renderStats();
+</script>
+</body>
+</html>
