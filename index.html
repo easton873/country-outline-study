@@ -35,7 +35,7 @@
   details summary { cursor:pointer; }
   .hidden { display:none; }
   #next { width:100%; }
-  @media (max-width:480px) { #home .row > label { flex:1 1 100%; } #start, #startAll { flex:1 1 40%; } }
+  @media (max-width:480px) { #home .row > label { flex:1 1 100%; } #start, #startAll, #startMissed { flex:1 1 40%; } }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#14161a; --card:#1e2127; --ink:#e8eaed; --muted:#9aa0a8; --line:#363b44; --accent:#3b82f6; --good:#4ade80; --bad:#f87171; }
     button { background:#272b33; }
@@ -53,8 +53,9 @@
       <label>Countries this session <input id="count" type="number" min="1" value="20"></label>
       <button id="start" class="primary">Start session</button>
       <button id="startAll">All countries</button>
+      <button id="startMissed">Missed only (<span id="missedCount">0</span>)</button>
     </div>
-    <p class="muted">Order: fewest views first, then highest score (the ones you miss most). Ties are shuffled.</p>
+    <p class="muted">"Missed only" studies every country with a score above 0, highest score first, ignoring views. Finishing early doesn't count the remaining countries as viewed. Order: fewest views first, then highest score (the ones you miss most). Ties are shuffled.</p>
     <details>
       <summary>Progress (<span id="seenCount"></span>)</summary>
       <table><thead><tr><th>Country</th><th>Views</th><th>Score</th></tr></thead><tbody id="stats"></tbody></table>
@@ -101,6 +102,8 @@ function shuffle(a) { for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.ran
 function show(id) { for (const s of ['home','study','done']) $(s).classList.toggle('hidden', s!==id); }
 
 function renderStats() {
+  const missed = COUNTRIES.filter(c => (stats[c.code]||{}).score > 0).length;
+  $('missedCount').textContent = missed; $('startMissed').disabled = !missed;
   const seen = COUNTRIES.filter(c => (stats[c.code]||{}).views).length;
   $('seenCount').textContent = `${seen}/${COUNTRIES.length} seen`;
   const rows = COUNTRIES.map(c => ({c, s: stats[c.code] || {views:0,score:0}}))
@@ -109,13 +112,18 @@ function renderStats() {
 }
 function esc(s){return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 
-function startSession(all) {
+function startSession(all, missedOnly) {
   const n = all === true ? COUNTRIES.length : Math.max(1, Math.min(COUNTRIES.length, parseInt($('count').value) || 20));
   const items = shuffle(COUNTRIES.slice()).sort((a,b) => {
     const sa = stats[a.code]||{views:0,score:0}, sb = stats[b.code]||{views:0,score:0};
     return sa.views - sb.views || sb.score - sa.score; // fewest views, then highest score
   });
-  queue = items.slice(0, n); idx = 0; right = wrong = 0;
+  if (missedOnly) {
+    queue = COUNTRIES.filter(c => (stats[c.code]||{}).score > 0)
+      .sort((a,b) => stats[b.code].score - stats[a.code].score || Math.random() - .5);
+    if (!queue.length) return;
+  } else queue = items.slice(0, n);
+  idx = 0; right = wrong = 0;
   show('study'); nextQuestion();
 }
 
@@ -148,14 +156,9 @@ function submit(country) {
 }
 
 function endSession(early) {
-  let skipped = 0;
-  if (early) {
-    // add a view to every country in the session not yet answered
-    for (let i = idx; i < queue.length; i++) { get(queue[i].code).views++; skipped++; }
-    save();
-  }
+  const skipped = early ? queue.length - idx : 0;
   $('doneTitle').textContent = early ? 'Session finished early' : 'Session complete';
-  $('summary').textContent = `Correct: ${right}, wrong: ${wrong}` + (early ? `, skipped (view added): ${skipped}` : '') + '.';
+  $('summary').textContent = `Correct: ${right}, wrong: ${wrong}` + (early ? `, skipped: ${skipped}` : '') + '.';
   show('done');
 }
 
@@ -207,6 +210,7 @@ document.addEventListener('click', e => { if (!e.target.closest('.combo') && doc
 
 $('start').onclick = () => startSession();
 $('startAll').onclick = () => startSession(true);
+$('startMissed').onclick = () => startSession(false, true);
 $('next').onclick = nextQuestion;
 $('finish').onclick = () => endSession(true);
 $('again').onclick = () => { renderStats(); show('home'); };
