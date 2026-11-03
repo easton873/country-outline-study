@@ -47,6 +47,7 @@
     <div class="row">
       <label>Countries this session <input id="count" type="number" min="1" value="20"></label>
       <button id="start" class="primary">Start session</button>
+      <button id="startAll">All countries</button>
     </div>
     <p class="muted">Order: fewest views first, then highest score (the ones you miss most). Ties are shuffled.</p>
     <details>
@@ -103,8 +104,8 @@ function renderStats() {
 }
 function esc(s){return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 
-function startSession() {
-  const n = Math.max(1, Math.min(COUNTRIES.length, parseInt($('count').value) || 20));
+function startSession(all) {
+  const n = all === true ? COUNTRIES.length : Math.max(1, Math.min(COUNTRIES.length, parseInt($('count').value) || 20));
   const items = shuffle(COUNTRIES.slice()).sort((a,b) => {
     const sa = stats[a.code]||{views:0,score:0}, sb = stats[b.code]||{views:0,score:0};
     return sa.views - sb.views || sb.score - sa.score; // fewest views, then highest score
@@ -198,7 +199,8 @@ $('list').addEventListener('mousedown', e => {
 });
 document.addEventListener('click', e => { if (!e.target.closest('.combo')) closeList(); });
 
-$('start').onclick = startSession;
+$('start').onclick = () => startSession();
+$('startAll').onclick = () => startSession(true);
 $('next').onclick = nextQuestion;
 $('finish').onclick = () => endSession(true);
 $('again').onclick = () => { renderStats(); show('home'); };
