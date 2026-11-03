@@ -54,7 +54,7 @@
       <button id="start" class="primary">Start session</button>
       <button id="startAll">All countries</button>
     </div>
-    <p class="muted">Order: fewest views first, then highest score (the ones you miss most). Ties are shuffled.</p>
+    <p class="muted">Finishing early doesn't count the remaining countries as viewed. Order: fewest views first, then highest score (the ones you miss most). Ties are shuffled.</p>
     <details>
       <summary>Progress (<span id="seenCount"></span>)</summary>
       <table><thead><tr><th>Country</th><th>Views</th><th>Score</th></tr></thead><tbody id="stats"></tbody></table>
@@ -148,14 +148,9 @@ function submit(country) {
 }
 
 function endSession(early) {
-  let skipped = 0;
-  if (early) {
-    // add a view to every country in the session not yet answered
-    for (let i = idx; i < queue.length; i++) { get(queue[i].code).views++; skipped++; }
-    save();
-  }
+  const skipped = early ? queue.length - idx : 0;
   $('doneTitle').textContent = early ? 'Session finished early' : 'Session complete';
-  $('summary').textContent = `Correct: ${right}, wrong: ${wrong}` + (early ? `, skipped (view added): ${skipped}` : '') + '.';
+  $('summary').textContent = `Correct: ${right}, wrong: ${wrong}` + (early ? `, skipped: ${skipped}` : '') + '.';
   show('done');
 }
 
